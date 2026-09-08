@@ -205,7 +205,9 @@ button:focus-visible,summary:focus-visible{outline:2px solid #3E8DDD;outline-off
   <div class="view" id="vPoints" role="tabpanel">
     <div id="kids"></div>
     <button class="undo" id="undo">마지막 기록 취소</button>
+    <button class="undo" id="sendPts" style="margin-top:8px">오늘 포인트 노션에 보내기</button>
     <p class="lastline" id="lastLine"></p>
+    <p class="lastline" id="ptsMsg"></p>
     <details>
       <summary>보상 교환표</summary>
       <div class="panel">
@@ -707,7 +709,7 @@ async function pushOne(t, ep){
     const r = await fetch("/api/notion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...t, ep })
+      body: JSON.stringify({ ...t, ep, kind: "trip" })
     });
     const d = await r.json();
     if (!r.ok){ LOGMSG.textContent = "실패: " + (d.error || r.status); return false; }
@@ -744,6 +746,42 @@ $("copyMd").addEventListener("click", async () => {
   } catch (e){
     LOGMSG.textContent = "복사 실패 — 브라우저가 막았습니다";
   }
+});
+
+
+/* ---------- 포인트 노션 전송 ---------- */
+const PTSMSG = $("ptsMsg");
+
+$("sendPts").addEventListener("click", async () => {
+  const d = today();
+  PTSMSG.textContent = "보내는 중...";
+  let ok = 0;
+  for (const k of KIDS){
+    const { pts, chief } = store.points[k.key];
+    const nt = nextTier(pts);
+    try {
+      const r = await fetch("/api/notion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "points",
+          date: d,
+          name: k.name,
+          pts, chief,
+          next: nt ? nt - pts : 0,
+          note: nt ? `다음 보상 ${nt}점` : "모든 보상 달성"
+        })
+      });
+      const j = await r.json();
+      if (r.ok) ok++;
+      else { PTSMSG.textContent = "실패: " + (j.error || r.status); return; }
+    } catch (err){
+      PTSMSG.textContent = "전송 실패: " + err.message;
+      return;
+    }
+    await new Promise(r => setTimeout(r, 350));
+  }
+  PTSMSG.textContent = `${d} 기준 ${ok}명 전송 완료`;
 });
 
 /* ---------- 탭 ---------- */
