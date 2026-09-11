@@ -5,6 +5,7 @@
 
 const NOTION_VERSION = "2022-06-28";
 const POINTS_DB_DEFAULT = "42e3f003a68a4e8eb97f223b9896890c";
+const ABROAD_DB_DEFAULT = "35cf92c668e249d1a53eeed25070ade9";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -17,11 +18,11 @@ export default async function handler(req, res) {
   }
 
   const b = (typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body) || {};
-  const kind = b.kind === "points" ? "points" : "trip";
+  const kind = ["points", "abroad"].includes(b.kind) ? b.kind : "trip";
 
-  const db = kind === "points"
-    ? (process.env.NOTION_POINTS_DB || POINTS_DB_DEFAULT)
-    : process.env.NOTION_DB;
+  const db = kind === "points" ? (process.env.NOTION_POINTS_DB || POINTS_DB_DEFAULT)
+           : kind === "abroad" ? (process.env.NOTION_ABROAD_DB || ABROAD_DB_DEFAULT)
+           : process.env.NOTION_DB;
 
   if (!db) {
     return res.status(500).json({ error: "설정 전입니다. Vercel 환경변수 NOTION_DB 를 등록하세요." });
@@ -43,6 +44,23 @@ export default async function handler(req, res) {
     };
     if (b.next !== null && b.next !== undefined && !Number.isNaN(Number(b.next))) {
       props["다음보상"] = { number: Number(b.next) };
+    }
+    if (b.note) props["메모"] = { rich_text: text(b.note) };
+  } else if (kind === "abroad") {
+    if (!b.city || !b.date) {
+      return res.status(400).json({ error: "도시와 날짜는 필수입니다" });
+    }
+    props = {
+      "회차": { title: text(`${b.mode || "해외 특별판"} ${b.city}`) },
+      "날짜": { date: { start: b.date } },
+      "도시": { rich_text: text(b.city) }
+    };
+    if (b.region)  props["권역"] = { select: { name: b.region } };
+    if (b.country) props["나라"] = { select: { name: b.country } };
+    if (b.chief)   props["대장"] = { select: { name: b.chief } };
+    if (b.rating)  props["평점"] = { number: Number(b.rating) };
+    if (b.budget !== "" && b.budget !== null && b.budget !== undefined && !Number.isNaN(Number(b.budget))) {
+      props["남은예산"] = { number: Number(b.budget) };
     }
     if (b.note) props["메모"] = { rich_text: text(b.note) };
   } else {
