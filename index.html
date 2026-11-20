@@ -418,7 +418,8 @@ function freeRegions(m){
 }
 const freeModes = () => ["day","night"].filter(m => liveRegions(m).length > 0);
 const freeJeju  = () => JEJU.filter(j => !store.jeju.includes(j));
-const jejuReady = () => Math.floor(store.cities.length / STEP) > store.jeju.length && freeJeju().length > 0;
+const JEJU_ON   = false;  // 제주 특별전 사용 여부 — 다시 켜려면 true 로 바꾸세요
+const jejuReady = () => JEJU_ON && Math.floor(store.cities.length / STEP) > store.jeju.length && freeJeju().length > 0;
 const toNextJeju = () => (Math.floor(store.cities.length / STEP) + 1) * STEP - store.cities.length;
 
 const onAbroad = () => store.special === "open" || store.special === "rig";
@@ -544,7 +545,8 @@ function refreshLog(){
   CHIPS.innerHTML = parts.length ? parts.join("")
     : '<p class="empty">아직 없습니다. 여기에 쌓이는 도시는 다음 룰렛에서 빠집니다.</p>';
 
-  JNOTE.textContent = freeJeju().length === 0
+  JNOTE.textContent = !JEJU_ON ? ""
+    : freeJeju().length === 0
     ? "제주 특별전 6곳을 모두 다녀왔습니다"
     : jejuReady() ? `제주 특별전이 열려 있습니다 (${store.jeju.length} / 6)`
                   : `제주 특별전까지 ${toNextJeju()}곳 남았습니다 (${store.jeju.length} / 6)`;
@@ -702,8 +704,8 @@ GO.addEventListener("click", () => {
       const city = a[win];
       if (!store.cities.includes(city)){ store.cities.push(city); addTrip(city, region, LABEL[mode]); }
       stage = "done"; marks(); refreshLog();
-      const tail = jejuReady() ? "제주 특별전이 열렸습니다" : `다음 제주 특별전까지 ${toNextJeju()}곳`;
-      show(city, `${LABEL[mode]} · ${region}<br>${tail}`);
+      const tail = !JEJU_ON ? "" : jejuReady() ? "제주 특별전이 열렸습니다" : `다음 제주 특별전까지 ${toNextJeju()}곳`;
+      show(city, `${LABEL[mode]} · ${region}${tail ? "<br>" + tail : ""}`);
       GO.textContent = "다음 판 준비";
     }
   }, 4700);
